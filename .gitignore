@@ -101,3 +101,6 @@ thumb
 sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/go,python,database,react
+
+# Go bin
+go/cmd/*/bin

@@ -10,25 +10,25 @@ all: build run
 
 # Build Go components
 build-go:
-	cd $(GO_SRC)/cmd/solana-extractor && go build
-	cd $(GO_SRC)/cmd/rag-orchestrator && go build
+	cd $(GO_SRC)/cmd/solana_extractor && go build -o ./bin/solana_extractor
+	cd $(GO_SRC)/cmd/rag_orchestrator && go build -o ./bin/rag_orchestrator
 
 # Build
 build: build-go
 
 # Clean build artifacts
 clean:
-	rm -f $(GO_SRC)/cmd/solana-extractor/solana-extractor
-	rm -f $(GO_SRC)/cmd/rag-orchestrator/rag-orchestrator
+	rm -f $(GO_SRC)/cmd/solana_extractor/bin/solana_extractor
+	rm -f $(GO_SRC)/cmd/rag_orchestrator/bin/rag_orchestrator
 #	find . -type d -name __pycache__ -exec rm -r {} +
 
 # Run the entire pipeline
 run: docker-up
-	$(GO_SRC)/cmd/solana-extractor/solana-extractor
-	python $(PYTHON_SRC)/data_cleaning/cleaner.py
-	python $(PYTHON_SRC)/data_enrichment/enricher.py
-	python $(PYTHON_SRC)/neo4j_integration/neo4j_client.py
-	$(GO_SRC)/cmd/rag-orchestrator/rag-orchestrator
+	$(GO_SRC)/cmd/solana_extractor/bin/solana_extractor
+#	python $(PYTHON_SRC)/data_cleaning/cleaner.py
+#	python $(PYTHON_SRC)/data_enrichment/enricher.py
+#	python $(PYTHON_SRC)/neo4j_integration/neo4j_client.py
+#	$(GO_SRC)/cmd/rag_orchestrator/bin/rag_orchestrator
 
 # Run tests
 test:

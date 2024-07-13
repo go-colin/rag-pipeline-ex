@@ -22,7 +22,7 @@ func main() {
 	}
 
 	// Run extractor
-	if err = solEx.Run("3Rcc6tMyS7ZEa29dxV4g3J5StorS9J1dn98gd42pZTk1"); err != nil {
+	if err = solEx.Run("8RCKm9vufqoebdt4S28ko1JLgSHsmLCBWMxTBXuVvGJQ"); err != nil {
 		log.Fatalf("Failed to run extractor: %v", err)
 	}
 }
