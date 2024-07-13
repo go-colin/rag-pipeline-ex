@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    env_file: .env
+    ports:
+      - "${RABBITMQ_NODE_PORT}:${RABBITMQ_NODE_PORT}"  # AMQP protocol port
+      - "${RABBITMQ_PORT_MANAGE}:${RABBITMQ_PORT_MANAGE}"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  postgres:
+    image: postgres:13
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../schema/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # neo4j:
+  #   image: neo4j:4.4
+  #   ports:
+  #     - "7474:7474"  # HTTP
+  #     - "7687:7687"  # Bolt
+  #   environment:
+  #     - NEO4J_AUTH={$DEFAULT_USER}/{$DEFAULT_PASSWORD}
+  #   volumes:
+  #     - neo4j_data:/data
+  #     - ../schema/neo4j/schema.cypher:/var/lib/neo4j/import/schema.cypher
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "echo 'MATCH (n) RETURN count(n)' | cypher-shell -u ${DEFAULT_USER} -p ${DEFAULT_PASSWORD} || exit 1"]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 5
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
+  neo4j_data:

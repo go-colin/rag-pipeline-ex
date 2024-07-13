@@ -74,6 +74,7 @@ cover/
 
 # Environments
 .env
+.env.production
 .venv
 env/
 venv/

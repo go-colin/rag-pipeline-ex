@@ -30,6 +30,7 @@ pkgs.mkShell {
     gnumake
     protobuf
     grpcurl
+    docker-compose
 
   ];
 
