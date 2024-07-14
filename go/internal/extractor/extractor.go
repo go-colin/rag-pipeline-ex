@@ -33,6 +33,9 @@ func NewSolanaExtractor(cfg *config.Config) (*SolanaExtractor, error) {
 		return nil, err
 	}
 
+	// litter config:
+	litter.Config.Compact = true
+
 	return &SolanaExtractor{
 		client:       client,
 		rabbitmqConn: conn,
@@ -62,9 +65,9 @@ func (e *SolanaExtractor) Run(tokenAddress string) error {
 }
 
 // Extract data from Solana
-func (e *SolanaExtractor) ExtractData(tokenPubKey solana.PublicKey) ([]WalletData, error) {
-
-	out, err := e.client.GetTokenLargestAccounts(
+func (e *SolanaExtractor) ExtractData(tokenPubKey solana.PublicKey) ([]*WalletData, error) {
+	// get top 20 holders for the token
+	holders, err := e.client.GetTokenLargestAccounts(
 		context.TODO(),
 		tokenPubKey,
 		rpc.CommitmentFinalized,
@@ -73,13 +76,28 @@ func (e *SolanaExtractor) ExtractData(tokenPubKey solana.PublicKey) ([]WalletDat
 		return nil, err
 	}
 
-	if e.litter {
-		litter.Dump(out)
+	// make initial walletdata from fetched wallets for token
+	walletData := NewWalletDataFromTokenValues(tokenPubKey, holders.Value)
+
+	/* 	if e.litter {
+		fmt.Println("walletData Dump:")
+		litter.Dump(walletData)
+	} */
+
+	// Get recent transactions for wallets
+	/* if err = e.GetTransactions(walletData); err != nil {
+		return nil, err
+	} */
+
+	// Get token accounts for wallets
+	if err = e.GetTokenAccounts(walletData); err != nil {
+		return nil, err
 	}
-	return nil, nil
+
+	return walletData, nil
 }
 
-func (e *SolanaExtractor) PublishToRabbitMQ(data []WalletData) error {
+func (e *SolanaExtractor) PublishToRabbitMQ(data []*WalletData) error {
 
 	return nil
 }

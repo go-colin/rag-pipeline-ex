@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-
 	// load config
 	cfg, err := config.Load()
 	if err != nil {
