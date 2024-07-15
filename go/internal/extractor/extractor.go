@@ -1,7 +1,9 @@
 package extractor
 
 import (
-	"context"
+	"fmt"
+	"io"
+	"reflect"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -15,7 +17,7 @@ type SolanaExtractor struct {
 	client       *rpc.Client
 	rabbitmqConn *amqp.Connection
 	rabbitmqChan *amqp.Channel
-	litter       bool // if true, dump litter for debug
+	litter       *litter.Options
 }
 
 func NewSolanaExtractor(cfg *config.Config) (*SolanaExtractor, error) {
@@ -25,22 +27,40 @@ func NewSolanaExtractor(cfg *config.Config) (*SolanaExtractor, error) {
 	// Init RMQ
 	conn, err := amqp.Dial(cfg.RabbitMQURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("rabbitmq dial: %w", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("rabbitmq channel: %w", err)
 	}
 
 	// litter config:
-	litter.Config.Compact = true
+	var litterOptions *litter.Options
+	if cfg.DoLitter {
+		litterOptions = &litter.Options{
+			//Compact: true,
+			// Custom Dump Function
+			DumpFunc: func(v reflect.Value, w io.Writer) bool {
+				// call String() on solana.PublicKey types.
+				if v.Type() == reflect.TypeOf(solana.PublicKey{}) {
+					w.Write(
+						[]byte(
+							fmt.Sprintf(" '%s'", v.MethodByName("String").Call(nil)[0].String()),
+						),
+					)
+					return true
+				}
+				return false
+			},
+		}
+	}
 
 	return &SolanaExtractor{
 		client:       client,
 		rabbitmqConn: conn,
 		rabbitmqChan: ch,
-		litter:       cfg.DoLitter,
+		litter:       litterOptions,
 	}, nil
 }
 
@@ -51,14 +71,18 @@ func (e *SolanaExtractor) Run(tokenAddress string) error {
 	defer e.rabbitmqChan.Close()
 
 	if err != nil {
-		return err
+		return fmt.Errorf("tokenAddress: %w", err)
 	}
+
+	// Extract Data from token address
 	walletData, err := e.ExtractData(tokenPubKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("extractData: %w", err)
 	}
+
+	// Publish wallet data to Queue
 	if err = e.PublishToRabbitMQ(walletData); err != nil {
-		return err
+		return fmt.Errorf("publish: %w", err)
 	}
 
 	return nil
@@ -66,23 +90,12 @@ func (e *SolanaExtractor) Run(tokenAddress string) error {
 
 // Extract data from Solana
 func (e *SolanaExtractor) ExtractData(tokenPubKey solana.PublicKey) ([]*WalletData, error) {
-	// get top 20 holders for the token
-	holders, err := e.client.GetTokenLargestAccounts(
-		context.TODO(),
-		tokenPubKey,
-		rpc.CommitmentFinalized,
-	)
-	if err != nil {
-		return nil, err
-	}
 
 	// make initial walletdata from fetched wallets for token
-	walletData := NewWalletDataFromTokenValues(tokenPubKey, holders.Value)
-
-	/* 	if e.litter {
-		fmt.Println("walletData Dump:")
-		litter.Dump(walletData)
-	} */
+	walletData, err := e.InitWalletDataFromToken(tokenPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("initWalletData: %w", err)
+	}
 
 	// Get recent transactions for wallets
 	/* if err = e.GetTransactions(walletData); err != nil {
@@ -90,9 +103,9 @@ func (e *SolanaExtractor) ExtractData(tokenPubKey solana.PublicKey) ([]*WalletDa
 	} */
 
 	// Get token accounts for wallets
-	if err = e.GetTokenAccounts(walletData); err != nil {
-		return nil, err
-	}
+	// if err = e.GetProgramAccounts(walletData[0:2]); err != nil {
+	// 	return nil, fmt.Errorf("getProgramAccounts: %w", err)
+	// }
 
 	return walletData, nil
 }

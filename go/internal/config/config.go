@@ -35,7 +35,7 @@ func Load() (*Config, error) {
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cfg validate: %w", err)
 	}
 
 	return cfg, nil
